@@ -44,7 +44,7 @@ conn = PG.connect(
 	)
 
 # Create table
-conn.exec "DROP TABLE IF EXISTS nook_test"
+conn.exec("DROP TABLE IF EXISTS nook_test")
 conn.exec("CREATE TABLE IF NOT EXISTS nook_test (id INTEGER, date DATE, streamflow FLOAT(3), model VARCHAR(255), time_frame VARCHAR(255))")
 
 # Insert data into database
