@@ -94,6 +94,7 @@ class WritePSQLMessage
 		alias = []
 		hash.each do |k, v|
 			alias << "#{k}.date#{v}"
+    end
 
 
 
@@ -149,7 +150,4 @@ db_connection.close
 
 # puts results.to_a
 
-test = ["Hello This is", "a test", "of the", "write_gcm_join method"]
-puts test
-puts test.join(",")
 
