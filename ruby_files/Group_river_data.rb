@@ -174,3 +174,41 @@ db_connection.close
 # puts results.to_a
 
 
+# SELECT 
+# i9.date,i9.streamflow,y2.date,y2.streamflow,c7.date,c7.streamflow,t9.date,t9.streamflow,v5.date,v5.streamflow,o6.date,o6.streamflow,f7.date,f7.streamflow,u8.date,u8.streamflow,k8.date,k8.streamflow
+# FROM aub_canesm2_rcp85_bcsd_vic_p1 i9
+# INNER JOIN aub_ccsm4_rcp85_bcsd_vic_p1 y2
+# ON i9.date = y2.date
+# INNER JOIN aub_cnrm_cm5_rcp85_bcsd_vic_p1 c7
+# ON i9.date = c7.date
+# INNER JOIN aub_csiro_mk3_6_0_rcp85_bcsd_vic_p1 t9
+# on i9.date = t9.date
+# INNER JOIN aub_gfdl_esm2m_rcp85_bcsd_vic_p1 v5
+# ON i9.date = v5.date
+# INNER JOIN aub_hadgem2_cc_rcp85_bcsd_vic_p1 o6
+# ON i9.date = o6.date
+# INNER JOIN aub_ipsl_cm5a_mr_rcp85_bcsd_vic_p1 f7
+# on i9.date = f7.date
+# INNER JOIN aub_inmcm4_rcp85_bcsd_vic_p1 u8
+# ON i9.date = u8.date
+# INNER JOIN aub_miroc5_rcp85_bcsd_vic_p1 k8
+# ON i9.date = k8.date;
+
+
+# SELECT 
+# l.date,l.streamflow,r.date,r.streamflow,m.date,m.streamflow
+# FROM t1 l
+# INNER JOIN t2 r
+# ON l.date = r.date
+# INNER JOIN t3 m
+# ON l.date = m.date;
+
+# NEED TO DO THIS!! 
+# CREATE TABLE t4 AS
+# SELECT 
+# l.date as datel,l.streamflow as sfl,r.date as dater,r.streamflow as sfr,m.date as datem,m.streamflow as sfm
+# FROM t1 l
+# INNER JOIN t2 r
+# ON l.date = r.date
+# INNER JOIN t3 m
+# ON l.date = m.date;
