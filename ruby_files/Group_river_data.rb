@@ -61,13 +61,17 @@ class WritePSQLMessage
 		@river = args.fetch(:river)
 	end
 
+  def replace_hyphens(string)
+	  string.gsub('-', '_')
+  end
+
 	# Example
 	def write_simple_print
 		@message = "SELECT * FROM #{@river.db_table_name} LIMIT 10;"
 	end
 
 	# Write the join to average all the GCM runs for a single rcp/hydro/downscale scenario 
-	def generate_hash_for_gcm_join(gcm_list)
+	def generate_hash_for_gcm_join_alias(gcm_list)
 		hash = {}
 		alphabet = ('a'..'z').to_a 
 		numbers = ('1'..'9').to_a
@@ -89,40 +93,53 @@ class WritePSQLMessage
 	end
 
 	def write_gcm_join(gcm_list)
-		hash = generate_hash_for_gcm_join(gcm_list)
-		# Make alias message for each gcm
-		alias = []
-		hash.each do |k, v|
-			alias << "#{k}.date#{v}"
-    end
+		hash = generate_hash_for_gcm_join_alias(gcm_list) # Generate a hash of unique letters and numbers for the GCMs
+    message_1, table_hash = write_alias_message(hash) # Generate the message and a hash of the table names
+    hash_length = table_hash.length
 
+    # Write the header 
+    write_psql_head_message(message_1)
 
-
-
-
-		@message = "SELECT * FROM #{@river.db_table_name}_#{hash.keys.join} LIMIT 10;"
+    # Write the body of the query (INNER JOIN)
+    @message += write_inner_join_message(table_hash)
+    @message += ";"
 	end
 
-	# # Example 
-	# SELECT 
-	# l.date,l.streamflow,r.date,r.streamflow
-	# FROM t1 l 
-	# INNER JOIN t2 r
-	# on l.date = r.date
+  def write_alias_message(hash)
+    message = []
+    table_hash = {}
+    hash.each do |k, v|
+      message << "#{k}.date,#{k}.streamflow"
+      @river.gcm = replace_hyphens(v)
+      table_hash[k] = @river.db_table_name
+    end
+    return message.join(','), table_hash
+  end
 
+  def write_inner_join_message(hash)
+    counter = 1
+    message = []
+    key_1 = hash.keys.first
+    hash.each do |k, v|
+      if counter == 1
+        message << "FROM #{v} #{k}"
+      else
+        message << "INNER JOIN #{v} #{k}\nON #{key_1}.date = #{k}.date"
+      end
+      counter += 1
+    end
+    message.join("\n")
+  end
+
+
+  def write_psql_head_message(header)
+    @message = "SELECT\n#{header}\n"
+  end
 end
 
 
-
-
-
-
-
-
-
-
-
 # Example River object
+gcm_list = ['CanESM2', 'CCSM4', 'CNRM-CM5', 'CSIRO-Mk3-6-0', 'GFDL-ESM2M','HadGEM2-CC', 'IPSL-CM5A-MR', 'inmcm4', 'MIROC5']
 river = River.new('AUB', 'RCP85', 'VIC_P1', 'BCSD', 'CanESM2')
 
 # Connect to PSQL database
@@ -140,8 +157,14 @@ query = WritePSQLMessage.new(
 	:connection => db_connection,
 	:river => river
 )
-query.write_simple_print
-gcm_hash = query.generate_hash_for_gcm_join(['CanESM2', 'CCSM4', 'CNRM-CM5', 'CSIRO-Mk3-6-0', 'GFDL-ESM2M','HadGEM2-CC', 'IPSL-CM5A-MR', 'inmcm4', 'MIROC5'])
+
+# Genearte hash for SQL query 
+gcm_hash = query.generate_hash_for_gcm_join_alias(gcm_list)
+
+# Write SQL query
+query.write_gcm_join(gcm_list)
+puts query.message
+
 # Execute SQL query
 # results = db_connection.execute_query(query.message)
 
