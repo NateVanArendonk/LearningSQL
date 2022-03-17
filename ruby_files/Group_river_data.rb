@@ -1,3 +1,7 @@
+#####################################################################################################################################
+# NOTE THIS CODE IS DEPRECIATED AND KEPT FOR RECORD KEEPING. PLEASE SEE 'Compute_inter_model_average_discharge' FOR UPDATED VERSION #
+#####################################################################################################################################
+
 require 'pg'
 
 class River 
@@ -16,7 +20,6 @@ class River
 		"#{name.downcase}_#{gcm.downcase}_#{rcp.downcase}_#{downscale.downcase}_#{hydro.downcase}"
 	end
 end
-
 
 class ConnectPSQL
 	
@@ -51,9 +54,8 @@ class ConnectPSQL
 	end
 end
 
-
 class WritePSQLMessage
-	attr_accessor :message, :conection
+	attr_accessor :message, :conection, :river
 
 	def initialize(args)
 		@connection = args.fetch(:connection)
@@ -61,16 +63,90 @@ class WritePSQLMessage
 		@river = args.fetch(:river)
 	end
 
-  def replace_hyphens(string)
-	  string.gsub('-', '_')
-  end
-
-	# Example
-	def write_simple_print
-		@message = "SELECT * FROM #{@river.db_table_name} LIMIT 10;"
+	# Create name name for table of averaged river discharges 
+	def new_table_name
+		"#{@river.name.downcase}_#{@river.rcp.downcase}_#{@river.downscale.downcase}_#{@river.hydro.downcase}_mean"		
 	end
 
-	# Write the join to average all the GCM runs for a single rcp/hydro/downscale scenario 
+	# Write SQL query header/SELECT statement to instance of message for join 
+  def write_psql_head_message_join(header)
+    @message = "CREATE TABLE temp AS\nSELECT\n#{header}\n"
+  end	
+
+	# Wriet SQL query header/SELECT statement to instance of message for computing AVG
+	def write_psql_head_message_average
+		@message = "CREATE TABLE #{new_table_name} AS\n" 
+	end
+
+	# Write join of all tables into single table of just river data by date with single date column 
+	def write_gcm_join(gcm_list)
+		hash = generate_hash_for_gcm_join_alias(gcm_list) # Generate a hash of unique letters and numbers for the GCMs
+  	message_1, table_hash = write_alias_message(hash) # Generate the message and a hash of the table names
+  	hash_length = table_hash.length
+
+		# Write the header 
+		write_psql_head_message_join(message_1)
+
+		# Write the body of the query (INNER JOIN)
+		@message += write_inner_join_message(table_hash)
+		@message += ";"
+	end
+	
+	# Write row-wise averaging of the rivers in the temp table 
+	def write_average_discharges(gcm_list)
+		@message << 'SELECT *,\n'
+		@message << '       (SELECT AVG(Col)\n'
+		gcm_list.each_with_index do |gcm, ii|
+			if ii < 1
+				@message << "        FROM   (VALIES(sf#{ii}),\n"
+			elsif ii >= 1 && ii < gcm_list.length
+				@message << "                      (sf#{ii}),\n"
+			else
+				@message << "                      (sf#{ii})) V(Col)) AS q_avg\n"
+			end
+		end
+		@message << "FROM temp;"
+	end
+
+	def write_drop_temp_table
+		@message = 'DROP TABLE temp;'
+	end
+
+	# Write the inner join SQL Query text 
+  def write_inner_join_message(hash)
+    counter = 1
+    message = []
+    key_1 = hash.keys.first
+    hash.each do |k, v|
+      if counter == 1
+        message << "FROM #{v} #{k}"
+      else
+        message << "INNER JOIN #{v} #{k}\nON #{key_1}.date = #{k}.date"
+      end
+      counter += 1
+    end
+    message.join("\n")
+  end
+
+	# Write the alias text 
+  def write_alias_message(hash)
+    message = []
+    table_hash = {}
+    hash.each_with_index do |(k, v), ii|
+			if ii < 1
+				@message << "#{k}.date as date,#{k}.streamflow as sf#{ii},"
+			elsif ii >=1 && ii < hash.length
+				@message << "#{k}.streamflow as sf#{ii},"
+			else 
+				@message << "#{k}.streamflow as sf#{ii}"
+			end
+      @river.gcm = replace_hyphens(v)
+      table_hash[k] = @river.db_table_name
+    end
+    return @message, table_hash
+  end
+
+	# Create a hash relating the GCMS to a specific random alphanumeric alias for SQL query 
 	def generate_hash_for_gcm_join_alias(gcm_list)
 		hash = {}
 		alphabet = ('a'..'z').to_a 
@@ -90,57 +166,18 @@ class WritePSQLMessage
 			hash[key] = gcm
 		end
 		hash
+	end	
+
+	# Helper method
+	def replace_hyphens(string)
+		string.gsub('-', '_')
 	end
-
-	def write_gcm_join(gcm_list)
-		hash = generate_hash_for_gcm_join_alias(gcm_list) # Generate a hash of unique letters and numbers for the GCMs
-    message_1, table_hash = write_alias_message(hash) # Generate the message and a hash of the table names
-    hash_length = table_hash.length
-
-    # Write the header 
-    write_psql_head_message(message_1)
-
-    # Write the body of the query (INNER JOIN)
-    @message += write_inner_join_message(table_hash)
-    @message += ";"
-	end
-
-  def write_alias_message(hash)
-    message = []
-    table_hash = {}
-    hash.each do |k, v|
-      message << "#{k}.date,#{k}.streamflow"
-      @river.gcm = replace_hyphens(v)
-      table_hash[k] = @river.db_table_name
-    end
-    return message.join(','), table_hash
-  end
-
-  def write_inner_join_message(hash)
-    counter = 1
-    message = []
-    key_1 = hash.keys.first
-    hash.each do |k, v|
-      if counter == 1
-        message << "FROM #{v} #{k}"
-      else
-        message << "INNER JOIN #{v} #{k}\nON #{key_1}.date = #{k}.date"
-      end
-      counter += 1
-    end
-    message.join("\n")
-  end
-
-
-  def write_psql_head_message(header)
-    @message = "SELECT\n#{header}\n"
-  end
 end
 
 
 # Example River object
 gcm_list = ['CanESM2', 'CCSM4', 'CNRM-CM5', 'CSIRO-Mk3-6-0', 'GFDL-ESM2M','HadGEM2-CC', 'IPSL-CM5A-MR', 'inmcm4', 'MIROC5']
-river = River.new('AUB', 'RCP85', 'VIC_P1', 'BCSD', 'CanESM2')
+river = River.new('AUB', 'RCP85', 'VIC_P1', 'BCSD', 'CanESM2') 
 
 # Connect to PSQL database
 db_connection = ConnectPSQL.new(
@@ -152,21 +189,26 @@ db_connection = ConnectPSQL.new(
 )
 db_connection.connect
 
-# Generate SQL query
-query = WritePSQLMessage.new(
+# Generate SQL query for join 
+query_join = WritePSQLMessage.new(
 	:connection => db_connection,
 	:river => river
 )
 
-# Genearte hash for SQL query 
-gcm_hash = query.generate_hash_for_gcm_join_alias(gcm_list)
+# Genearte hash for join SQL query 
+query_join.generate_hash_for_gcm_join_alias(gcm_list)
 
-# Write SQL query
-query.write_gcm_join(gcm_list)
-puts query.message
+# Write SQL join query
+query_join.write_gcm_join(gcm_list)
 
-# Execute SQL query
+# Execute SQL join query
 # results = db_connection.execute_query(query.message)
+
+# Generate SQL query for averaging discharge data 
+query_avg = WritePSQLMessage.new(
+	:connection => db_connection, 
+	:river => river
+)
 
 # Close connection
 db_connection.close
@@ -195,18 +237,12 @@ db_connection.close
 # ON i9.date = k8.date;
 
 
-# SELECT 
-# l.date,l.streamflow,r.date,r.streamflow,m.date,m.streamflow
-# FROM t1 l
-# INNER JOIN t2 r
-# ON l.date = r.date
-# INNER JOIN t3 m
-# ON l.date = m.date;
 
-# NEED TO DO THIS!! 
+
+# Here is an example of how to merge all the columns into a new table 
 # CREATE TABLE t4 AS
 # SELECT 
-# l.date as datel,l.streamflow as sfl,r.date as dater,r.streamflow as sfr,m.date as datem,m.streamflow as sfm
+# l.date as date,l.streamflow as sfl,r.streamflow as sfr,m.streamflow as sfm
 # FROM t1 l
 # INNER JOIN t2 r
 # ON l.date = r.date
