@@ -62,3 +62,16 @@ hydro_list.each do |hydro| # Loop through hydro models
 end
 # Close connection
 db_connection.close
+
+
+
+
+# Here is an example of how to merge all the columns into a new table 
+# CREATE TABLE t4 AS
+# SELECT 
+# l.date as date,l.streamflow as sfl,r.streamflow as sfr,m.streamflow as sfm
+# FROM t1 l
+# INNER JOIN t2 r
+# ON l.date = r.date
+# INNER JOIN t3 m
+# ON l.date = m.date;
