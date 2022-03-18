@@ -9,13 +9,13 @@ class WritePSQLMessageAverageHydroModels
 	end
 
 	# Create name name for table of averaged river discharges 
-	def new_table_name
+	def new_table_name_hydro
 		"#{@river.name.downcase}_#{@river.rcp.downcase}_#{@river.downscale.downcase}_hydro_mean"		
 	end
 
 	# Wriet SQL query header/SELECT statement to instance of message for computing AVG
 	def write_psql_head_message_average
-		@message = "CREATE TABLE #{new_table_name} AS\n" 
+		@message = "CREATE TABLE #{new_table_name_hydro} AS\n" 
 	end
 
 	# Write row-wise averaging of the rivers in the temp table 
@@ -40,11 +40,11 @@ class WritePSQLMessageAverageHydroModels
 	end
 
 	def write_delete_new_table
-		"DROP TABLE IF EXISTS #{new_table_name}"
+		"DROP TABLE IF EXISTS #{new_table_name_hydro}"
 	end
 
 	def write_success_average_message
-		"Successfully added table #{new_table_name}"
+		"Successfully added table #{new_table_name_hydro}"
 	end
 end
 

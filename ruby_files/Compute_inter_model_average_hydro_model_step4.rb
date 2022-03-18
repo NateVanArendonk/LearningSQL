@@ -67,4 +67,4 @@ rcp_list.each do |rcp| # Loop through rcp scenarios
 	end
 end
 # # Close connection
-# db_connection.close
+db_connection.close

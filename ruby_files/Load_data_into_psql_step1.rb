@@ -35,6 +35,7 @@ total_files = models.length * rcp.length * hydro_model.length * downscale.length
 # Data folder (UWHYDRO)
 data_folder = 'E:\F_Drive_Data\fluvial\uw_hydro_crcc_data'.gsub(/\\/,'/')
 temp_folder = 'F:\analysis\fluvial\uw_hydro_forecast\ruby_files'.gsub(/\\/,'/')
+# C:\usgs_vanarendonk\datasets\fluvial\uw_hydro_crcc_data\AUB\biascorrected_streamflow
 # Make a counter for the bias correction folder 
 count = 0
 file_counter = 1;
